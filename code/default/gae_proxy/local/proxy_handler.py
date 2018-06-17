@@ -165,29 +165,31 @@ class GAEProxyHandler(simple_http_server.HttpServerHandler):
         """deploy fake cert to client"""
         host, _, port = self.path.rpartition(':')
         port = int(port)
-        if port != 443:
+        if port not in (80, 443):
             xlog.warn("CONNECT %s port:%d not support", host, port)
             return
 
-        certfile = CertUtil.get_cert(host)
         self.wfile.write(b'HTTP/1.1 200 OK\r\n\r\n')
 
-        try:
-            ssl_sock = ssl.wrap_socket(self.connection, keyfile=CertUtil.cert_keyfile, certfile=certfile, server_side=True)
-        except ssl.SSLError as e:
-            xlog.info('ssl error: %s, create full domain cert for host:%s', e, host)
-            certfile = CertUtil.get_cert(host, full_name=True)
-            return
-        except Exception as e:
-            if e.args[0] not in (errno.ECONNABORTED, errno.ECONNRESET):
-                xlog.exception('ssl.wrap_socket(self.connection=%r) failed: %s path:%s, errno:%s', self.connection, e, self.path, e.args[0])
-            return
+        leadbyte = self.connection.recv(1, socket.MSG_PEEK)
+        if leadbyte in ('\x80', '\x16'):
+            certfile = CertUtil.get_cert(host)
+            try:
+                ssl_sock = ssl.wrap_socket(self.connection, keyfile=CertUtil.cert_keyfile, certfile=certfile, server_side=True)
+            except ssl.SSLError as e:
+                xlog.info('ssl error: %s, create full domain cert for host:%s', e, host)
+                certfile = CertUtil.get_cert(host, full_name=True)
+                return
+            except Exception as e:
+                if e.args[0] not in (errno.ECONNABORTED, errno.ECONNRESET):
+                    xlog.exception('ssl.wrap_socket(self.connection=%r) failed: %s path:%s, errno:%s', self.connection, e, self.path, e.args[0])
+                return
 
-        self.__realwfile = self.wfile
-        self.__realrfile = self.rfile
-        self.connection = ssl_sock
-        self.rfile = self.connection.makefile('rb', self.bufsize)
-        self.wfile = self.connection.makefile('wb', 0)
+            self.__realwfile = self.wfile
+            self.__realrfile = self.rfile
+            self.connection = ssl_sock
+            self.rfile = self.connection.makefile('rb', self.bufsize)
+            self.wfile = self.connection.makefile('wb', 0)
 
         self.parse_request()
 
