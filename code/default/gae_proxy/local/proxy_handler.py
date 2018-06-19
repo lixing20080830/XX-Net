@@ -169,7 +169,7 @@ class GAEProxyHandler(simple_http_server.HttpServerHandler):
             xlog.warn("CONNECT %s port:%d not support", host, port)
             return
 
-        self.wfile.write(b'HTTP/1.1 200 OK\r\n\r\n')
+        self.wfile.write(b'HTTP/1.1 200 Connection Established\r\n\r\n')
 
         leadbyte = self.connection.recv(1, socket.MSG_PEEK)
         if leadbyte in ('\x80', '\x16'):
@@ -191,9 +191,7 @@ class GAEProxyHandler(simple_http_server.HttpServerHandler):
             self.rfile = self.connection.makefile('rb', self.bufsize)
             self.wfile = self.connection.makefile('wb', 0)
 
-        self.parse_request()
-
-        self.do_METHOD()
+        self.close_connection = 0
 
     def do_METHOD(self):
         #self.close_connection = 0
@@ -227,7 +225,11 @@ class GAEProxyHandler(simple_http_server.HttpServerHandler):
                 self.path = self.parsed_url[2]
 
         if len(self.url) > 2083 and self.host.endswith(front.config.GOOGLE_ENDSWITH):
-            return self.go_DIRECT()
+            if method == "https":
+                return self.go_DIRECT()
+            else:
+                xlog.debug("Host:%s Direct redirect to https", host)
+                return self.wfile.write(('HTTP/1.1 301\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n' % self.path.replace('http://', 'https://', 1)).encode())
 
         if self.host in front.config.HOSTS_GAE:
             return self.go_AGENT()
@@ -235,11 +237,11 @@ class GAEProxyHandler(simple_http_server.HttpServerHandler):
         # redirect http request to https request
         # avoid key word filter when pass through GFW
         if host in front.config.HOSTS_DIRECT:
-            if isinstance(self.connection, ssl.SSLSocket):
+            if method == "https":
                 return self.go_DIRECT()
             else:
                 xlog.debug("Host:%s Direct redirect to https", host)
-                return self.wfile.write(('HTTP/1.1 301\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n' % self.url.replace('http://', 'https://', 1)).encode())
+                return self.wfile.write(('HTTP/1.1 301\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n' % self.path.replace('http://', 'https://', 1)).encode())
 
         if host.endswith(front.config.HOSTS_GAE_ENDSWITH):
             return self.go_AGENT()
