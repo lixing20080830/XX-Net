@@ -60,6 +60,7 @@ class GAEProxyHandler(simple_http_server.HttpServerHandler):
 
     bufsize = 65535
     local_names = []
+    conntunnel = False
     self_check_response_data = "HTTP/1.1 200 OK\r\n" \
                                "Access-Control-Allow-Origin: *\r\n" \
                                "Cache-Control: no-cache, no-store, must-revalidate\r\n" \
@@ -170,6 +171,7 @@ class GAEProxyHandler(simple_http_server.HttpServerHandler):
             return
 
         self.wfile.write(b'HTTP/1.1 200 Connection Established\r\n\r\n')
+        self.conntunnel = True
 
         leadbyte = self.connection.recv(1, socket.MSG_PEEK)
         if leadbyte in ('\x80', '\x16'):
@@ -229,7 +231,17 @@ class GAEProxyHandler(simple_http_server.HttpServerHandler):
                 return self.go_DIRECT()
             else:
                 xlog.debug("Host:%s Direct redirect to https", host)
-                return self.wfile.write(('HTTP/1.1 301\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n' % self.url.replace('http://', 'https://', 1)).encode())
+                if self.conntunnel:
+                    self.close_connection = 0
+                    connection = 'Connection: close'
+                else:
+                    connection = ''
+                url = self.url.replace('http://', 'https://', 1)
+                return self.wfile.write(('HTTP/1.1 301 Moved Permanently\r\n'
+                                         'Location: %s\r\n'
+                                         'Content-Length: 0\r\n'
+                                         '%\r\n'
+                                         % (url, connection)).encode())
 
         if self.host in front.config.HOSTS_GAE:
             return self.go_AGENT()
@@ -241,7 +253,17 @@ class GAEProxyHandler(simple_http_server.HttpServerHandler):
                 return self.go_DIRECT()
             else:
                 xlog.debug("Host:%s Direct redirect to https", host)
-                return self.wfile.write(('HTTP/1.1 301\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n' % self.url.replace('http://', 'https://', 1)).encode())
+                if self.conntunnel:
+                    self.close_connection = 0
+                    connection = 'Connection: close'
+                else:
+                    connection = ''
+                url = self.url.replace('http://', 'https://', 1)
+                return self.wfile.write(('HTTP/1.1 301 Moved Permanently\r\n'
+                                         'Location: %s\r\n'
+                                         'Content-Length: 0\r\n'
+                                         '%\r\n'
+                                         % (url, connection)).encode())
 
         if host.endswith(front.config.HOSTS_GAE_ENDSWITH):
             return self.go_AGENT()
@@ -251,7 +273,17 @@ class GAEProxyHandler(simple_http_server.HttpServerHandler):
                 return self.go_DIRECT()
             else:
                 xlog.debug("Host:%s Direct redirect to https", host)
-                return self.wfile.write(('HTTP/1.1 301\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n' % self.url.replace('http://', 'https://', 1)).encode())
+                if self.conntunnel:
+                    self.close_connection = 0
+                    connection = 'Connection: close'
+                else:
+                    connection = ''
+                url = self.url.replace('http://', 'https://', 1)
+                return self.wfile.write(('HTTP/1.1 301 Moved Permanently\r\n'
+                                         'Location: %s\r\n'
+                                         'Content-Length: 0\r\n'
+                                         '%\r\n'
+                                         % (url, connection)).encode())
 
         return self.go_AGENT()
 
