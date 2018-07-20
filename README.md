@@ -1,5 +1,9 @@
 # XX-Net
 
+### 我参考的文档
+
+https://github.com/XX-net/XX-Net/wiki/%E4%BD%BF%E7%94%A8Chrome%E6%B5%8F%E8%A7%88%E5%99%A8<br>
+
 ###### [中文文档](https://github.com/XX-net/XX-Net/wiki/%E4%B8%AD%E6%96%87%E6%96%87%E6%A1%A3) &nbsp; &nbsp; &nbsp;[English](https://github.com/XX-net/XX-Net/wiki/English-Home-Page) &nbsp; &nbsp; &nbsp;[فارسی صفحه اصلی](https://github.com/XX-net/XX-Net/wiki/Persian-home-page) 
 
 * 易用的翻墙工具  
